@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>WMD Master Control</title>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+		<style>
+			body {
+				font-family: "Courier New", monospace;
+				padding: 20px;
+				background: #1a1a1a;
+				color: #e0e0e0;
+			}
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 20px;
+			}
+
+			.box {
+				background: #2d2d2d;
+				padding: 20px;
+				border-radius: 8px;
+				box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+			}
+			.full-width {
+				grid-column: span 2;
+			}
+
+			h1,
+			h2 {
+				color: #ff5555;
+				text-transform: uppercase;
+				margin-top: 0;
+			}
+
+			.stats-grid {
+				display: flex;
+				gap: 20px;
+				justify-content: space-around;
+				text-align: center;
+			}
+			.stat-item {
+				background: #333;
+				padding: 15px;
+				border-radius: 4px;
+				width: 100%;
+			}
+			.stat-value {
+				font-size: 2em;
+				font-weight: bold;
+				color: white;
+			}
+
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				margin-top: 10px;
+			}
+			th,
+			td {
+				text-align: left;
+				padding: 10px;
+				border-bottom: 1px solid #444;
+			}
+			th {
+				color: #888;
+			}
+			tr:hover {
+				background: #333;
+			}
+
+			.btn-inspect {
+				background: #444;
+				color: white;
+				border: 1px solid #666;
+				padding: 5px 10px;
+				cursor: pointer;
+			}
+			.btn-inspect:hover {
+				background: #ff5555;
+				border-color: #ff5555;
+			}
+
+			.status-REJECT {
+				color: #ff5555;
+				font-weight: bold;
+			}
+			.status-HIRE {
+				color: #4caf50;
+				font-weight: bold;
+			}
+
+			.chart-container {
+				position: relative;
+				height: 400px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1 style="text-align: center; margin-bottom: 30px">
+			GLOBAL SURVEILLANCE SYSTEM
+		</h1>
+
+		<div class="container">
+			<div class="box full-width">
+				<h2>General Statistics</h2>
+				<div class="stats-grid">
+					<div class="stat-item">
+						<div>Total Candidates</div>
+						<div id="totalCount" class="stat-value">0</div>
+					</div>
+					<div class="stat-item">
+						<div>Rejected (High Risk)</div>
+						<div id="rejectedCount" class="stat-value">0</div>
+					</div>
+					<div class="stat-item">
+						<div>Rejection Rate</div>
+						<div id="rejectionRate" class="stat-value">0%</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box">
+				<h2>Candidate Database</h2>
+				<div style="max-height: 500px; overflow-y: auto">
+					<table id="usersTable">
+						<thead>
+							<tr>
+								<th>UID (Short)</th>
+								<th>Neuroticism</th>
+								<th>Verdict</th>
+								<th>Action</th>
+							</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+				<button
+					onclick="loadDashboard()"
+					style="
+						margin-top: 10px;
+						width: 100%;
+						padding: 10px;
+						background: #333;
+						color: white;
+						border: none;
+						cursor: pointer;
+					"
+				>
+					🔄 Refresh List
+				</button>
+			</div>
+
+			<div class="box">
+				<h2 id="profileTitle">Target Analysis</h2>
+				<p id="profileSubtitle" style="color: #888">
+					Select a candidate to view details
+				</p>
+				<div class="chart-container">
+					<canvas id="oceanChart"></canvas>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			let radarChart = null;
+
+			window.onload = loadDashboard;
+
+			async function loadDashboard() {
+				try {
+					const response = await fetch("/api/dashboard");
+					const users = await response.json();
+					const total = users.length;
+					const rejected = users.filter((u) => u.verdict === "REJECT").length;
+					document.getElementById("totalCount").innerText = total;
+					document.getElementById("rejectedCount").innerText = rejected;
+					document.getElementById("rejectionRate").innerText =
+						total > 0 ? Math.round((rejected / total) * 100) + "%" : "0%";
+
+					const tbody = document.querySelector("#usersTable tbody");
+					tbody.innerHTML = "";
+
+					users.forEach((u) => {
+						const row = document.createElement("tr");
+						const shortUid = u.uid.substring(0, 8) + "...";
+						row.innerHTML = `
+                        <td title="${u.uid}">${shortUid}</td>
+                        <td>${Math.round(u.neuroticism)}</td>
+                        <td class="status-${u.verdict}">${u.verdict}</td>
+                        <td><button class="btn-inspect" onclick='inspectUser(${JSON.stringify(
+													u
+												)})'>Inspect</button></td>
+                    `;
+						tbody.appendChild(row);
+					});
+				} catch (error) {
+					console.error("Error loading dashboard:", error);
+				}
+			}
+
+			function inspectUser(user) {
+				document.getElementById("profileTitle").innerText =
+					"Analysis: " + user.uid.substring(0, 8);
+				document.getElementById(
+					"profileSubtitle"
+				).innerText = `Verdict: ${user.verdict} (N:${user.neuroticism} / C:${user.conscientiousness})`;
+
+				const ctx = document.getElementById("oceanChart").getContext("2d");
+				if (radarChart) radarChart.destroy();
+
+				radarChart = new Chart(ctx, {
+					type: "radar",
+					data: {
+						labels: [
+							"Openness",
+							"Conscientiousness",
+							"Extraversion",
+							"Agreeableness",
+							"Neuroticism",
+						],
+						datasets: [
+							{
+								label: "Candidate Profile",
+								data: [
+									user.openness,
+									user.conscientiousness,
+									user.extraversion,
+									user.agreeableness,
+									user.neuroticism,
+								],
+								backgroundColor:
+									user.verdict === "REJECT"
+										? "rgba(255, 85, 85, 0.4)"
+										: "rgba(76, 175, 80, 0.4)",
+								borderColor: user.verdict === "REJECT" ? "#ff5555" : "#4caf50",
+								borderWidth: 2,
+							},
+						],
+					},
+					options: {
+						scales: {
+							r: {
+								suggestedMin: 0,
+								suggestedMax: 100,
+								grid: { color: "#444" },
+								angleLines: { color: "#444" },
+								pointLabels: { color: "#ccc" },
+							},
+						},
+					},
+				});
+			}
+		</script>
+	</body>
+</html>
