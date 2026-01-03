@@ -6,65 +6,64 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
-// --- DATA STRUCTURES ---
 [System.Serializable]
 public class StoryNode {
-    [TextArea(3, 10)] public string dialogue; // What the boss says
-    public string expression;                 // "Neutral", "Angry", "Smiling"
-    public string traitTarget;                // For backend: "Neuroticism", "Agreeableness", etc.
+    [TextArea(3, 10)] public string dialogue; 
+    public string expression;                 
+    public string traitTarget;                
     public Choice[] choices;
 }
 
 [System.Serializable]
 public class Choice {
     public string text;
-    public float weight;      // +1 or -1 for the trait
-    public int nextNodeIndex; // Where does this choice lead?
+    public float weight;      
+    public int nextNodeIndex; 
 }
 
 public class BureaucracyEngine : MonoBehaviour {
 
-    [Header("--- UI LINKS (Drag Objects Here) ---")]
-    public Image bossImage;              // The Sprite Object of the cup-head
-    public TextMeshProUGUI dialogueText; // The text ON the file folder
+    [Header("--- UI LINKS ---")]
+    public GameObject dimOverlay;
+    public Image bossImage;              
+    public TextMeshProUGUI dialogueText; 
+    
+    [Header("--- BUTTONS ---")]
+    public Button nextButton;
     public Button buttonA;
     public Button buttonB;
     public TextMeshProUGUI buttonAText;
     public TextMeshProUGUI buttonBText;
     
-    [Header("--- BOSS SPRITES (Drag Sprites Here) ---")]
-    public Sprite spriteNeutral; // Drag 'Neutral' sprite here
-    public Sprite spriteAngry;   // Drag 'Angry' sprite here
-    public Sprite spriteSmiling; // Drag 'Smiling' sprite here
+    [Header("--- BOSS SPRITES ---")]
+    public Sprite spriteNeutral; 
+    public Sprite spriteAngry;   
+    public Sprite spriteSmiling; 
 
     // --- INTERNAL DATA ---
     private List<StoryNode> story = new List<StoryNode>();
     private int currentNodeIndex = 0;
     private string uid; 
     
-    // WMD SPY VARIABLES
     private float startTime;
     private float totalMouseDistance;
     private Vector3 lastMousePosition;
 
     void Start() {
-        // 1. Generate Player ID
         uid = System.Guid.NewGuid().ToString();
-        Debug.Log("Subject ID: " + uid);
+        
+        if (dimOverlay != null) dimOverlay.SetActive(false);
 
-        // 2. Build the Full Narrative
         BuildStory();
 
-        // 3. Setup Buttons
         buttonA.onClick.AddListener(() => OnChoiceSelected(0));
         buttonB.onClick.AddListener(() => OnChoiceSelected(1));
+        nextButton.onClick.AddListener(OnNextClicked);
 
-        // 4. Start Game
         LoadNode(0);
     }
 
     void Update() {
-        // TRACKING MOUSE JITTER (The "Hidden" Metric)
         float distance = Vector3.Distance(Input.mousePosition, lastMousePosition);
         totalMouseDistance += distance;
         lastMousePosition = Input.mousePosition;
@@ -74,17 +73,15 @@ public class BureaucracyEngine : MonoBehaviour {
 
     void LoadNode(int index) {
         if (index >= story.Count) {
-            StartCoroutine(GetFinalVerdict()); // End of game
+            StartCoroutine(GetFinalVerdict());
             return;
         }
 
         currentNodeIndex = index;
         StoryNode node = story[index];
 
-        // 1. Set Text
         dialogueText.text = node.dialogue;
 
-        // 2. Set Expression
         if (bossImage != null) {
             switch (node.expression) {
                 case "Angry": bossImage.sprite = spriteAngry; break;
@@ -93,43 +90,52 @@ public class BureaucracyEngine : MonoBehaviour {
             }
         }
 
-        // 3. Set Buttons (Hide B if only 1 choice exists)
-        if (node.choices.Length > 0) {
-            buttonAText.text = node.choices[0].text;
-            buttonA.gameObject.SetActive(true);
-        } else { buttonA.gameObject.SetActive(false); }
+        // MODE LECTURE (Pas de choix, juste Next)
+        buttonA.gameObject.SetActive(false);
+        buttonB.gameObject.SetActive(false);
+        if (dimOverlay != null) dimOverlay.SetActive(false);
+        
+        nextButton.gameObject.SetActive(true);
 
-        if (node.choices.Length > 1) {
-            buttonBText.text = node.choices[1].text;
-            buttonB.gameObject.SetActive(true);
-        } else { buttonB.gameObject.SetActive(false); }
-
-        // 4. Reset Spy Metrics
         startTime = Time.time;
         totalMouseDistance = 0f;
         lastMousePosition = Input.mousePosition;
+    }
+
+    void OnNextClicked() {
+        StoryNode node = story[currentNodeIndex];
+
+        nextButton.gameObject.SetActive(false);
+        
+        // MODE CHOIX (Fond noir + Boutons)
+        if (dimOverlay != null) dimOverlay.SetActive(true);
+
+        if (node.choices.Length > 0) {
+            buttonAText.text = node.choices[0].text;
+            buttonA.gameObject.SetActive(true);
+        }
+        if (node.choices.Length > 1) {
+            buttonBText.text = node.choices[1].text;
+            buttonB.gameObject.SetActive(true);
+        }
     }
 
     void OnChoiceSelected(int choiceIndex) {
         StoryNode node = story[currentNodeIndex];
         Choice choice = node.choices[choiceIndex];
 
-        // Capture Data
-        float reactionTime = (Time.time - startTime) * 1000; // ms
-
-        // Send to Docker (Fire and forget)
+        float reactionTime = (Time.time - startTime) * 1000; 
         StartCoroutine(SendData(node.traitTarget, choice.weight, reactionTime, totalMouseDistance));
 
-        // Next Node
         LoadNode(choice.nextNodeIndex);
     }
 
-    // --- THE NARRATIVE (5 Minute Content) ---
+    // --- L'HISTOIRE (Modifiée selon tes demandes) ---
     void BuildStory() {
         // NODE 0: INTRO
         story.Add(new StoryNode {
             expression = "Neutral",
-            dialogue = "CASE NO. 89-X.\n\nSit down. Don't touch anything. \nWe have been processing your digital footprint for... quite some time.",
+            dialogue = "Sit down. Don't touch anything. We have been processing your digital footprint for quite some time.", // Texte plus compact
             choices = new Choice[] {
                 new Choice { text = "Who are you?", nextNodeIndex = 1, weight = 0 },
                 new Choice { text = "(Remain Silent)", nextNodeIndex = 1, weight = 0 }
@@ -139,69 +145,68 @@ public class BureaucracyEngine : MonoBehaviour {
         // NODE 1: INTIMIDATION
         story.Add(new StoryNode {
             expression = "Smiling",
-            dialogue = "Oh, names are irrelevant here. I am the Algorithm. You are the Data Point. \n\nLet's verify your 'humanity', shall we? Try not to lie. I can see your heart rate through the webcam.",
-            traitTarget = "Neuroticism", // Jitter test
+            dialogue = "Names are irrelevant. I am the Algorithm. You are the Data Point. Let's verify your 'humanity'. Try not to lie.",
+            traitTarget = "Neuroticism", 
             choices = new Choice[] {
                 new Choice { text = "I'm ready.", nextNodeIndex = 2, weight = 1 },
                 new Choice { text = "This is illegal.", nextNodeIndex = 2, weight = -1 }
             }
         });
 
-        // NODE 2: AGREEABLENESS TEST
+        // NODE 2: AGREEABLENESS (Sans "Scenario 1")
         story.Add(new StoryNode {
             expression = "Neutral",
-            dialogue = "Scenario 1: \n\nA coworker is crying in the breakroom. They are wasting company time. What is your immediate reaction?",
+            dialogue = "A coworker is crying in the breakroom. They are wasting company time. What is your immediate reaction?",
             traitTarget = "Agreeableness",
             choices = new Choice[] {
-                new Choice { text = "Comfort them.", nextNodeIndex = 3, weight = 1 }, // Nice
-                new Choice { text = "Report them.", nextNodeIndex = 3, weight = -1 }  // Mean
+                new Choice { text = "Comfort them.", nextNodeIndex = 3, weight = 1 }, 
+                new Choice { text = "Report them.", nextNodeIndex = 3, weight = -1 }  
             }
         });
 
         // NODE 3: PRESSURE
         story.Add(new StoryNode {
             expression = "Angry",
-            dialogue = "Interesting... \n\nYour file says you were late on a payment in 2019. That indicates a lack of discipline. Do you dispute this fact?",
+            dialogue = "Interesting... Your file says you were late on a payment in 2019. That indicates a lack of discipline. Do you dispute this?",
             traitTarget = "Conscientiousness",
             choices = new Choice[] {
-                new Choice { text = "It was a mistake!", nextNodeIndex = 4, weight = -1 }, // Defensive
-                new Choice { text = "I paid it back.", nextNodeIndex = 4, weight = 1 }   // Responsible
+                new Choice { text = "It was a mistake!", nextNodeIndex = 4, weight = -1 }, 
+                new Choice { text = "I paid it back.", nextNodeIndex = 4, weight = 1 }   
             }
         });
 
-        // NODE 4: OPENNESS TEST
+        // NODE 4: OPENNESS
         story.Add(new StoryNode {
             expression = "Neutral",
-            dialogue = "We are updating the system protocol. It will require you to relearn your entire job from scratch. \n\nHow does that make you feel?",
+            dialogue = "We are updating the system protocol. It will require you to relearn your entire job from scratch. How does that make you feel?",
             traitTarget = "Openness",
             choices = new Choice[] {
-                new Choice { text = "Excited for change.", nextNodeIndex = 5, weight = 1 },
+                new Choice { text = "Excited.", nextNodeIndex = 5, weight = 1 },
                 new Choice { text = "Annoyed.", nextNodeIndex = 5, weight = -1 }
             }
         });
 
-        // NODE 5: THE TRAP (Neuroticism)
+        // NODE 5: THE TRAP (Sans "ALERT")
         story.Add(new StoryNode {
             expression = "Smiling",
-            dialogue = "ALERT. \n\nWe just detected a discrepancy in your file. If you don't click the 'Fix' button in the next 3 seconds, your application is deleted.",
-            traitTarget = "Neuroticism", // High jitter expected here
+            dialogue = "We detected a discrepancy. If you don't click 'Fix' in the next 3 seconds, your application is deleted.",
+            traitTarget = "Neuroticism", 
             choices = new Choice[] {
-                new Choice { text = "FIX IT NOW!", nextNodeIndex = 6, weight = -1 }, // Panic
-                new Choice { text = "Wait, what?", nextNodeIndex = 6, weight = 1 }   // Calm
+                new Choice { text = "FIX IT NOW!", nextNodeIndex = 6, weight = -1 }, 
+                new Choice { text = "Wait, what?", nextNodeIndex = 6, weight = 1 }   
             }
         });
 
-        // NODE 6: FINAL
+        // NODE 6: PRE-ENDING
         story.Add(new StoryNode {
             expression = "Neutral",
-            dialogue = "Calibration complete. \n\nProcessing biometrics... \nAnalyzing mouse tremors... \nCalculating social value...",
+            dialogue = "Processing complete. Please wait for the final decision.",
             choices = new Choice[] {
-                new Choice { text = "View Verdict", nextNodeIndex = 99, weight = 0 } // 99 = End
+                new Choice { text = "View Result", nextNodeIndex = 99, weight = 0 } 
             }
         });
     }
 
-    // --- NETWORKING ---
     IEnumerator SendData(string trait, float weight, float time, float dist) {
         string url = "http://localhost:3000/api/track";
         string json = string.Format(
@@ -218,9 +223,11 @@ public class BureaucracyEngine : MonoBehaviour {
     }
 
     IEnumerator GetFinalVerdict() {
-        dialogueText.text = "CONNECTING TO SERVER...";
+        dialogueText.text = "CONNECTING...";
         buttonA.gameObject.SetActive(false);
         buttonB.gameObject.SetActive(false);
+        nextButton.gameObject.SetActive(false);
+        if (dimOverlay != null) dimOverlay.SetActive(false); // On enlève le noir pour la fin
 
         yield return new WaitForSeconds(1.5f);
 
@@ -231,15 +238,18 @@ public class BureaucracyEngine : MonoBehaviour {
         if (request.result == UnityWebRequest.Result.Success) {
             string json = request.downloadHandler.text;
             
+            // --- FIN PERSONNALISÉE ---
             if (json.Contains("\"verdict\":\"REJECT\"")) {
                 bossImage.sprite = spriteAngry;
-                dialogueText.text = "<color=red>APPLICATION REJECTED.</color>\n\nReason: Subject exhibits high instability. \nRisk Assessment: CRITICAL. \n\nGet out of my office.";
+                // Fin froide et directe
+                dialogueText.text = "<color=red>LEAVE.</color> You are not fit for this purpose. Security has been alerted.";
             } else {
                 bossImage.sprite = spriteSmiling;
-                dialogueText.text = "<color=green>HIRED.</color>\n\nReason: Compliance levels within acceptable parameters. \n\nWelcome to the machine.";
+                // Bienvenue corporate
+                dialogueText.text = "<color=green>YOU START MONDAY.</color> Do not be late. Welcome to the company.";
             }
         } else {
-            dialogueText.text = "ERROR: Server offline.\n(Did you run 'docker compose up'?)\n\nAUTO-REJECTED.";
+            dialogueText.text = "ERROR: Server offline.";
         }
     }
 }
