@@ -1,0 +1,20 @@
+fileFormatVersion: 2
+guid: b169fdad914adf74d944005c38a90adb
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - bossImage: {instanceID: 0}
+  - dialogueText: {instanceID: 0}
+  - buttonA: {instanceID: 0}
+  - buttonB: {instanceID: 0}
+  - buttonAText: {instanceID: 0}
+  - buttonBText: {instanceID: 0}
+  - spriteNeutral: {fileID: 7822112587111204412, guid: 676488910c134ff4bb99c8f9d0ac4953, type: 3}
+  - spriteAngry: {fileID: 7143586373401363173, guid: 0a57180eb2a3fd044af2f50e1fce6bc8, type: 3}
+  - spriteSmiling: {fileID: 9000731280283991461, guid: 0a287d665c2bb554d9df1542c31b5e18, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

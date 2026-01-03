@@ -1,0 +1,28 @@
+# --- Node.js Backend ---
+# Huge dependency folders that can be re-installed via 'npm install'
+node_modules/
+/backend/node_modules/
+
+# --- Security ---
+# Contains secrets and database URLs - NEVER commit this!
+.env
+
+# --- System Files ---
+# Mac and Windows temporary files
+.DS_Store
+Thumbs.db
+
+# --- Unity Generated Files (Updated for subfolders) ---
+**/[Ll]ibrary/
+**/[Tt]emp/
+**/[Oo]bj/
+**/[Bb]uild/
+**/[Bb]uilds/
+**/[Ll]ogs/
+**/[Uu]ser[Ss]ettings/
+**/UserSettings/
+
+# Visual Studio / VS Code generated files
+.vscode/
+*.sln
+*.csproj
