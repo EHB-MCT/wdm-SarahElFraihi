@@ -14,8 +14,8 @@ services:
     container_name: game_api
     ports:
       - "3000:3000"
-    env_file:
-      - .env
+    environment:
+      - DB_URL=mongodb://mongo:27017/gamedata
     depends_on:
       - mongo
     volumes:
